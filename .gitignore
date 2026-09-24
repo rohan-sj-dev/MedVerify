@@ -1,0 +1,81 @@
+# --- dependencies ---
+node_modules/
+.pnp/
+.pnp.js
+PLAN.md
+
+# --- environment & secrets ---
+# SERIAL_SALT lives here. Committing it would let anyone recompute every
+# serial_hash in the registry, which defeats the point of hashing them.
+.env
+.env.*
+!.env.example
+
+# --- real pack data (Phase 0 testing) ---
+# Payloads scanned from real medicine carry real serial numbers. Publishing
+# one hands a counterfeiter a code that passes registry lookup. Keep the real
+# corpus local; commit only the redacted example.
+tests/fixtures/real-packs.json
+tests/fixtures/scans/
+*.pack.json
+
+# --- test & build output ---
+coverage/
+.vitest/
+dist/
+build/
+*.tsbuildinfo
+
+# --- Fabric crypto material (Phase 5) ---
+# Private keys and MSP identities. Never commit these, even for a test network.
+wallet/
+crypto-config/
+organizations/
+*.pem
+*.key
+!**/testdata/**/*.pem
+
+# --- Flutter app (Phase 1) ---
+app/build/
+app/.dart_tool/
+app/.flutter-plugins*
+app/ios/Pods/
+app/android/local.properties
+*.iml
+
+# --- ML artefacts (Phases 3-6) ---
+# Generated datasets and trained weights are large and reproducible from the
+# generator seed, so they are outputs, not sources.
+ml/data/
+ml/out/
+*.onnx
+*.pt
+*.pth
+*.joblib
+__pycache__/
+.venv/
+venv/
+
+# --- database ---
+pgdata/
+*.dump
+*.sqlite
+
+# --- editors & OS ---
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+
+tests/
+.env.example
+
+# --- logs ---
+*.log
+npm-debug.log*
+logs/

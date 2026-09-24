@@ -1,0 +1,30 @@
+flowchart TD
+    S(["Agent results received"]) --> Q1{"Serial found<br/>in registry?"}
+    Q1 -->|No| CF["COUNTERFEIT<br/>serial never issued"]
+    Q1 -->|Yes| Q2{"Status = Recalled<br/>or Suspended?"}
+    Q2 -->|Yes| CF2["COUNTERFEIT<br/>recalled or confirmed clone"]
+    Q2 -->|No| Q3{"Past expiry<br/>date?"}
+    Q3 -->|Yes| SU1["SUSPECT<br/>expired - do not consume"]
+    Q3 -->|No| Q4{"Unit-level<br/>serial?"}
+    Q4 -->|No| BM["Apply batch-mode<br/>thresholds"]
+    Q4 -->|Yes| UM["Apply unit-mode<br/>thresholds"]
+    BM --> Q5
+    UM --> Q5{"Geo-velocity<br/>over 900 km/h?"}
+    Q5 -->|Yes| CF3["COUNTERFEIT<br/>physically impossible"]
+    Q5 -->|No| Q6{"Anomaly score<br/>over 0.75?"}
+    Q6 -->|Yes| SU2["SUSPECT<br/>abnormal scan pattern"]
+    Q6 -->|No| Q7{"Visual match<br/>under 0.60?"}
+    Q7 -->|Yes| SU3["SUSPECT<br/>packaging mismatch"]
+    Q7 -->|No| Q8{"Any agent<br/>INSUFFICIENT_DATA?"}
+    Q8 -->|Yes| LC["GENUINE<br/>low confidence"]
+    Q8 -->|No| GN["GENUINE<br/>high confidence"]
+
+    CF --> N["Narrator writes reasons"]
+    CF2 --> N
+    CF3 --> N
+    SU1 --> N
+    SU2 --> N
+    SU3 --> N
+    LC --> N
+    GN --> N
+    N --> E(["Return verdict"])

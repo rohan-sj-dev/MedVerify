@@ -1,0 +1,70 @@
+classDiagram
+    direction LR
+    class Drug {
+      +String gtin
+      +String brandName
+      +String salt
+      +String strength
+      +String form
+      +bool narrowTherapeuticIndex
+    }
+    class Batch {
+      +String batchId
+      +String gtin
+      +Date mfgDate
+      +Date expiryDate
+      +String plantCode
+      +String manufacturerId
+      +BatchStatus status
+      +bool isExpired()
+    }
+    class Unit {
+      +String serialHash
+      +String batchId
+      +UnitStatus status
+      +DateTime mintedAt
+      +bool unitLevel
+      +transition(UnitStatus)
+    }
+    class CustodyEvent {
+      +String eventId
+      +String fromOrg
+      +String toOrg
+      +GeoPoint location
+      +DateTime occurredAt
+    }
+    class Scan {
+      +UUID scanId
+      +String serialHash
+      +GeoPoint location
+      +DateTime scannedAt
+      +String deviceId
+      +CodeFormat format
+    }
+    class Verdict {
+      +UUID scanId
+      +VerdictLevel level
+      +float confidence
+      +String narrative
+    }
+    class AgentResult {
+      +String agentName
+      +float score
+      +String verdict
+      +Evidence[] evidence
+      +bool hardFail
+    }
+    class Evidence {
+      +String signal
+      +float value
+      +String unit
+      +String detail
+    }
+
+    Drug "1" --> "0..*" Batch : produced as
+    Batch "1" --> "0..*" Unit : commissions
+    Unit "1" --> "0..*" CustodyEvent : records
+    Unit "1" --> "0..*" Scan : observed by
+    Scan "1" --> "1" Verdict : resolves to
+    Verdict "1" --> "1..*" AgentResult : fuses
+    AgentResult "1" --> "0..*" Evidence : cites

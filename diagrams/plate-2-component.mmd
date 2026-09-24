@@ -1,0 +1,35 @@
+flowchart LR
+    APP["Flutter App<br/>scanner + camera + GPS"]
+
+    subgraph GW["API Gateway  (Fastify / Node)"]
+      PARSE["Code Parser<br/>GS1 / CDSCO / EAN"]
+      ORCH["Orchestrator"]
+      FUSE["Fusion Engine<br/>deterministic rules"]
+      NARR["Narrator<br/>Claude"]
+    end
+
+    subgraph AG["Agent Layer"]
+      A1["Ledger Agent"]
+      A2["Anomaly Agent"]
+      A3["Vision Agent"]
+      A4["Recall Agent"]
+      A5["Alternatives Agent"]
+    end
+
+    LED[("Registry<br/>Fabric / Postgres")]
+    LOG[("Scan Log<br/>Postgres + PostGIS")]
+    DRUG[("Drug Catalogue<br/>salt / strength / form")]
+    FEED["CDSCO / WHO<br/>recall feeds"]
+
+    APP -->|"POST /scan"| PARSE
+    PARSE -->|"parsed unit ref"| ORCH
+    ORCH -->|"fan out, parallel"| A1 & A2 & A3 & A4
+    A1 -->|"query serial_hash"| LED
+    A2 -->|"history + geo query"| LOG
+    A4 -->|"poll 6h"| FEED
+    A1 & A2 & A3 & A4 -->|"score + evidence"| FUSE
+    FUSE -->|"verdict"| NARR
+    FUSE -->|"if not GENUINE"| A5
+    A5 --> DRUG
+    A5 & NARR -->|"verdict + reasons"| APP
+    ORCH -.->|"append scan row"| LOG

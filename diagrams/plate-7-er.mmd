@@ -1,0 +1,61 @@
+erDiagram
+    direction LR
+    DRUGS ||--o{ BATCHES : "produced as"
+    BATCHES ||--o{ UNITS : commissions
+    UNITS ||--o{ CUSTODY_EVENTS : records
+    UNITS ||--o{ SCANS : "observed by"
+    SCANS ||--|| VERDICTS : "resolves to"
+    VERDICTS ||--|{ AGENT_RESULTS : fuses
+
+    DRUGS {
+        text gtin PK
+        text brand_name
+        text salt
+        text strength
+        text dosage_form
+        bool narrow_therapeutic_index
+    }
+    BATCHES {
+        text batch_id PK
+        text gtin FK
+        date mfg_date
+        date expiry_date
+        text plant_code
+        text status
+    }
+    UNITS {
+        text serial_hash PK
+        text batch_id FK
+        text status
+        bool unit_level
+        timestamptz minted_at
+    }
+    CUSTODY_EVENTS {
+        uuid event_id PK
+        text serial_hash FK
+        text from_org
+        text to_org
+        geography location
+        timestamptz occurred_at
+    }
+    SCANS {
+        uuid scan_id PK
+        text serial_hash FK
+        geography location
+        timestamptz scanned_at
+        text device_id
+        text code_format
+    }
+    VERDICTS {
+        uuid scan_id PK
+        text level
+        float confidence
+        text narrative
+    }
+    AGENT_RESULTS {
+        uuid result_id PK
+        uuid scan_id FK
+        text agent_name
+        float score
+        jsonb evidence
+    }

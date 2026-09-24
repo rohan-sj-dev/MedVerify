@@ -1,0 +1,29 @@
+stateDiagram-v2
+    [*] --> Commissioned : mint(batchId) / manufacturer identity required
+    Commissioned --> InTransit : transferCustody(distributor)
+    InTransit --> InTransit : transferCustody(next org)
+    InTransit --> AtPharmacy : transferCustody(retailer)
+    AtPharmacy --> Dispensed : markDispensed()
+    Dispensed --> [*]
+
+    Commissioned --> Recalled : flagRecall(batchId)
+    InTransit --> Recalled : flagRecall(batchId)
+    AtPharmacy --> Recalled : flagRecall(batchId)
+    Dispensed --> Recalled : flagRecall(batchId)
+    Recalled --> [*]
+
+    AtPharmacy --> Suspended : cloneConfirmed()
+    Dispensed --> Suspended : cloneConfirmed()
+    Suspended --> AtPharmacy : cleared(investigation)
+    Suspended --> Recalled : confirmed(investigation)
+
+    note right of Dispensed
+      A scan after Dispensed is not
+      an error - patients re-check.
+      Many scans from many devices is.
+    end note
+    note right of Suspended
+      Set by the Anomaly Agent,
+      not the manufacturer. The only
+      system-initiated transition.
+    end note

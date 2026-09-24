@@ -1,0 +1,15 @@
+{
+  "name": "medverify",
+  "version": "0.1.0",
+  "description": "Counterfeit medicine detection - Phase 0: code parsing",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "parse": "node src/cli.js"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.0"
+  }
+}

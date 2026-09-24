@@ -1,0 +1,43 @@
+sequenceDiagram
+    autonumber
+    actor C as Consumer
+    participant App as Flutter App
+    participant API as Gateway
+    participant P as Parser
+    participant O as Orchestrator
+    participant LA as Ledger Agent
+    participant AA as Anomaly Agent
+    participant VA as Vision Agent
+    participant F as Fusion
+    participant N as Narrator (Claude)
+
+    C->>App: scan code, photograph pack
+    App->>API: POST /scan {payload, format, photos, geo}
+    API->>P: parse(payload, format)
+    P-->>API: {gtin, serial, batch, expiry, unitLevel}
+    API->>O: verify(unitRef, geo, photos)
+
+    par Parallel agent fan-out
+        O->>LA: check(serialHash)
+        LA-->>O: minted, status, batch
+    and
+        O->>AA: analyse(serialHash, geo, now)
+        AA-->>O: cloneScore, geo evidence
+    and
+        O->>VA: match(photos, expectedDrug)
+        VA-->>O: visualScore
+    end
+
+    O->>F: fuse([ledger, anomaly, vision, recall])
+    F-->>App: verdict + evidence (renders immediately)
+
+    F->>N: narrate(verdict, evidence)
+    N-->>App: plain-language reasons (streamed)
+
+    O->>API: append scan row to log
+    Note over O,API: written after response - never blocks the verdict
+
+    alt verdict != GENUINE
+        App->>API: GET /alternatives?salt=...&strength=...
+        API-->>App: verified substitutes
+    end

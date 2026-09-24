@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 500" width="900" height="500" style="color:#16202C" role="img" aria-label="UML use case diagram for MedVerify">
+  <defs>
+    <marker id="uc-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <polygon points="0,1 9,5 0,9" fill="none" stroke="currentColor" stroke-width="1.2"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="900" height="500" fill="#FFFFFF"/>
+
+  <rect x="172" y="46" width="570" height="420" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".45"/>
+  <text x="457" y="34" text-anchor="middle" font-family="IBM Plex Sans, Segoe UI, sans-serif" font-size="12.5" font-weight="600" fill="currentColor">MedVerify System</text>
+
+  <g stroke="currentColor" stroke-width="1.4" fill="none">
+    <circle cx="70" cy="140" r="12"/>
+    <line x1="70" y1="152" x2="70" y2="182"/>
+    <line x1="52" y1="162" x2="88" y2="162"/>
+    <line x1="70" y1="182" x2="56" y2="204"/>
+    <line x1="70" y1="182" x2="84" y2="204"/>
+  </g>
+  <text x="70" y="222" text-anchor="middle" font-family="IBM Plex Sans, Segoe UI, sans-serif" font-size="11.5" fill="currentColor">Consumer</text>
+
+  <g stroke="currentColor" stroke-width="1.4" fill="none">
+    <circle cx="70" cy="320" r="12"/>
+    <line x1="70" y1="332" x2="70" y2="362"/>
+    <line x1="52" y1="342" x2="88" y2="342"/>
+    <line x1="70" y1="362" x2="56" y2="384"/>
+    <line x1="70" y1="362" x2="84" y2="384"/>
+  </g>
+  <text x="70" y="402" text-anchor="middle" font-family="IBM Plex Sans, Segoe UI, sans-serif" font-size="11.5" fill="currentColor">Pharmacist</text>
+
+  <g stroke="currentColor" stroke-width="1.4" fill="none">
+    <circle cx="830" cy="130" r="12"/>
+    <line x1="830" y1="142" x2="830" y2="172"/>
+    <line x1="812" y1="152" x2="848" y2="152"/>
+    <line x1="830" y1="172" x2="816" y2="194"/>
+    <line x1="830" y1="172" x2="844" y2="194"/>
+  </g>
+  <text x="830" y="212" text-anchor="middle" font-family="IBM Plex Sans, Segoe UI, sans-serif" font-size="11.5" fill="currentColor">Manufacturer</text>
+
+  <g stroke="currentColor" stroke-width="1.4" fill="none">
+    <circle cx="830" cy="336" r="12"/>
+    <line x1="830" y1="348" x2="830" y2="378"/>
+    <line x1="812" y1="358" x2="848" y2="358"/>
+    <line x1="830" y1="378" x2="816" y2="400"/>
+    <line x1="830" y1="378" x2="844" y2="400"/>
+  </g>
+  <text x="830" y="418" text-anchor="middle" font-family="IBM Plex Sans, Segoe UI, sans-serif" font-size="11.5" fill="currentColor">Regulator</text>
+
+  <g fill="none" stroke="currentColor" stroke-width="1.1" opacity=".75">
+    <ellipse cx="330" cy="98" rx="105" ry="26"/>
+    <ellipse cx="330" cy="172" rx="105" ry="26"/>
+    <ellipse cx="330" cy="256" rx="105" ry="26"/>
+    <ellipse cx="330" cy="330" rx="105" ry="26"/>
+  </g>
+  <g font-family="IBM Plex Sans, Segoe UI, sans-serif" font-size="12" fill="currentColor" text-anchor="middle">
+    <text x="330" y="102">Scan pack</text>
+    <text x="330" y="176">View verdict</text>
+    <text x="330" y="260">Find alternatives</text>
+    <text x="330" y="334">Report suspect pack</text>
+  </g>
+
+  <g fill="none" stroke="currentColor" stroke-width="1.1" opacity=".75">
+    <ellipse cx="600" cy="98" rx="105" ry="26"/>
+    <ellipse cx="600" cy="172" rx="105" ry="26"/>
+    <ellipse cx="600" cy="300" rx="105" ry="26"/>
+    <ellipse cx="600" cy="386" rx="105" ry="26"/>
+  </g>
+  <g font-family="IBM Plex Sans, Segoe UI, sans-serif" font-size="12" fill="currentColor" text-anchor="middle">
+    <text x="600" y="102">Commission batch</text>
+    <text x="600" y="176">Transfer custody</text>
+    <text x="600" y="304">Issue recall</text>
+    <text x="600" y="390">Audit flagged batch</text>
+  </g>
+
+  <g stroke="currentColor" stroke-width="1" opacity=".55">
+    <line x1="92" y1="150" x2="228" y2="102"/>
+    <line x1="92" y1="160" x2="228" y2="172"/>
+    <line x1="92" y1="172" x2="228" y2="250"/>
+    <line x1="92" y1="330" x2="228" y2="330"/>
+    <line x1="92" y1="312" x2="228" y2="266"/>
+    <line x1="808" y1="140" x2="702" y2="104"/>
+    <line x1="808" y1="150" x2="702" y2="174"/>
+    <line x1="808" y1="160" x2="702" y2="294"/>
+    <line x1="808" y1="346" x2="702" y2="306"/>
+    <line x1="808" y1="356" x2="702" y2="386"/>
+  </g>
+
+  <line x1="330" y1="124" x2="330" y2="142" stroke="currentColor" stroke-width="1.1" stroke-dasharray="4 3" marker-end="url(#uc-arrow)"/>
+  <text x="342" y="138" font-family="IBM Plex Sans, Segoe UI, sans-serif" font-size="10" fill="currentColor" opacity=".7">&#171;include&#187;</text>
+
+  <line x1="330" y1="304" x2="330" y2="200" stroke="currentColor" stroke-width="1.1" stroke-dasharray="4 3" marker-end="url(#uc-arrow)"/>
+  <text x="342" y="238" font-family="IBM Plex Sans, Segoe UI, sans-serif" font-size="10" fill="currentColor" opacity=".7">&#171;extend&#187;</text>
+</svg>

@@ -1,0 +1,36 @@
+flowchart TB
+    subgraph DEV["Device :: Android / iOS"]
+      FA["MedVerify App<br/>Flutter + ML Kit"]
+    end
+
+    subgraph HOST["Server node :: Docker Compose"]
+      direction TB
+      API["api :: Fastify<br/>node :3000"]
+      AGT["agents :: Node workers"]
+      PG[("postgres :: PG16 + PostGIS<br/>:5432")]
+      RD[("redis :: cache + queue<br/>:6379")]
+    end
+
+    subgraph FAB["Fabric network :: 2.5"]
+      direction LR
+      PEER1["peer0.manufacturer"]
+      PEER2["peer0.distributor"]
+      PEER3["peer0.regulator"]
+      ORD["orderer"]
+      CC["chaincode :: medtrace (Go)"]
+    end
+
+    EXT["Claude API<br/>claude-sonnet-5"]
+    FEEDS["CDSCO / WHO<br/>recall feeds"]
+
+    FA -->|"HTTPS / REST"| API
+    API --> AGT
+    AGT -->|"SQL + PostGIS"| PG
+    AGT -->|"cache"| RD
+    AGT -->|"HTTPS"| EXT
+    AGT -->|"poll 6h"| FEEDS
+    AGT -->|"gRPC / mTLS<br/>fabric-gateway, in process"| PEER1
+    PEER1 --- ORD
+    PEER2 --- ORD
+    PEER3 --- ORD
+    PEER1 --- CC

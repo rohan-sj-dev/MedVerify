@@ -9,8 +9,21 @@ test its scan history for physical impossibility, explain the verdict in plain l
 
 ```bash
 npm install
-npm test
+npm test          # 93 tests
+npm start         # gateway on :3000
+```
 
+With the gateway running, the app:
+
+```bash
+cd app
+flutter run                                                    # emulator
+flutter run --dart-define=MEDVERIFY_API=http://<your-ip>:3000  # real phone
+```
+
+The parser CLI needs no server:
+
+```bash
 # parse a real code from a pharmacy pack
 npm run parse -- "(01)08901234567890(17)271130(10)B4471(21)7A9F2K3M8Q"
 npm run parse -- '{"uid":"7A9F2K3M8Q","bn":"B4471","exp":"11/2027"}' QR_CODE
@@ -29,10 +42,12 @@ npm run parse -- "8901234567890" EAN_13
 }
 ```
 
-Node 20+. No runtime dependencies — vitest is the only dev dependency.
+Node 20+ and Flutter 3.3+. Runtime dependencies: `express` and `zod` (the parsers themselves
+still have none).
 
 ---
 
+## Phase 0 — the parsers
 
 Just the parsers. Every later phase reads the shape they produce, and a mistake here looks
 like random corruption three phases downstream, so it is built and tested before anything
@@ -45,7 +60,7 @@ src/parsers/
   cdsco.js    tolerant Indian QR parser
   index.js    parseCode() — scheme detection and dispatch
 src/cli.js    parse a payload from the command line
-tests/        54 tests, plus the real-pack corpus
+tests/        93 tests, plus the real-pack corpus
 ```
 
 One entry point:
@@ -115,3 +130,63 @@ Azithral, Pan-D, Shelcal. For a GS1 DataMatrix you need an imported or export-ma
 unique field equal to the batch number. That is not a bug; it is the single most important
 real-world finding, and it decides whether Phase 4 can apply unit-level thresholds at all.
 The suite prints the batch-level percentage across your corpus.
+
+---
+
+## Phase 1 — contract, gateway, app
+
+```
+src/contracts/verdict.js   frozen contract, zod
+src/fixtures/verdicts.js   five canned verdicts, validated at import
+src/server.js              Express 5 gateway
+app/                       Flutter client
+```
+
+| Route | Purpose |
+|---|---|
+| `GET /health` | liveness; reports whether the dev salt is still in use |
+| `POST /parse` | run a payload through the Phase 0 parsers |
+| `GET /mock/scan?case=…` | `genuine`, `suspect`, `counterfeit`, `not_serialized`, `batch_level` |
+
+**Every response is validated against its schema before it leaves.** A fixture or handler that
+drifts from the contract fails at startup or in the test suite, never in a client that would
+then render something wrong about a medicine.
+
+`POST /parse` returns `serial_hash`, never the serial itself — a test asserts the raw serial
+never appears in the response body.
+
+### Two rules the client holds to
+
+**Branch on `verdict`, never on the narrative.** The narrative is written by an LLM from the
+evidence; the verdict is computed deterministically. A test asserts no `SUSPECT` or
+`COUNTERFEIT` narrative can contain reassuring language — in place now, before a real model
+ever writes one.
+
+**Never render a bare "Genuine."** Every verdict shows the claim *and* its basis, rendering the
+`evidence` array per agent. Users calibrate trust on the reasoning, and the reasoning is what
+protects you when the system is wrong.
+
+The app scans QR, DataMatrix **and** EAN-13. A batch-level code gets an explicit notice that
+the code is shared across the batch and cannot be checked for copying; a linear barcode gets
+"cannot be checked" rather than an error.
+
+### Running the app
+
+Android licences must be accepted once:
+
+```bash
+flutter doctor --android-licenses
+```
+
+Cleartext HTTP to local addresses is permitted by
+`app/android/app/src/main/res/xml/network_security_config.xml` — **development only**. Delete
+it and the manifest reference once the gateway is HTTPS.
+
+---
+
+## Next: Phase 2
+
+Apply the schema, stand up Postgres/PostGIS, and replace `/mock/scan` with a real `POST /scan`:
+parser → Ledger Agent → fusion → Narrator.
+
+Nothing in the app changes when that lands, because both halves speak the same frozen contract.

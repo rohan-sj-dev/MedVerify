@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Release policy: HTTPS only.
+
+  Debug builds override this with src/debug/res/xml/network_security_config.xml,
+  which permits cleartext so the app can reach a gateway running on your own
+  machine.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DEBUG BUILDS ONLY.
+
+  Android resource merging gives src/debug precedence over src/main, so this
+  file replaces the strict one only in `flutter run` / debug APKs. Release
+  builds keep src/main's config, which forbids cleartext entirely.
+
+  Blanket permission is deliberate here: a dev gateway can live on the
+  emulator alias (10.0.2.2), on localhost, or on whatever LAN address your
+  machine happens to have today. Enumerating them is how you end up with a
+  phone that silently cannot connect.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

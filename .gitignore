@@ -73,6 +73,7 @@ desktop.ini
 
 
 tests/
+
 .env.example
 
 # --- logs ---

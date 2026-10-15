@@ -80,3 +80,7 @@ tests/
 *.log
 npm-debug.log*
 logs/
+
+# --- local dev data ---
+.data/
+samples/

@@ -48,12 +48,11 @@ class _ScanScreenState extends State<ScanScreen> {
     await _controller.stop();
 
     try {
-      final parsed = await widget.api.parse(payload, _symbologyOf(barcode!.format));
-      final verdict = await widget.api.mockScan(widget.api.caseFor(parsed));
+      final verdict = await widget.api.scan(payload, _symbologyOf(barcode!.format));
       if (!mounted) return;
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => ResultScreen(verdict: verdict, parsed: parsed),
+          builder: (_) => ResultScreen(verdict: verdict, parsed: null),
         ),
       );
     } on ApiException catch (err) {

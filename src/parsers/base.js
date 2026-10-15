@@ -85,6 +85,16 @@ export function makeParsedCode({
   extra = {},
   warnings = [],
 }) {
+  // Identifying fields are looked up in the registry. A control character in
+  // one is never part of a real code, and a NUL byte cannot even be stored in
+  // PostgreSQL text — left in, it surfaces as a database error instead of an
+  // unreadable code.
+  for (const [field, value] of Object.entries({ gtin, serial, batch })) {
+    if (value !== null && /[\u0000-\u001f\u007f]/.test(value)) {
+      throw new ParseError(`${field} contains control characters`);
+    }
+  }
+
   return Object.freeze({
     raw,
     symbology,

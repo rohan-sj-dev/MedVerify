@@ -72,7 +72,31 @@ class MedVerifyApi {
     return ParsedCode.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
-  /// Phase 1 only: canned verdicts. Replaced by POST /scan in Phase 2.
+  /// Verify a scanned pack against the registry (POST /scan).
+  Future<ScanVerdict> scan(String payload, String symbology) async {
+    final res = await _client
+        .post(
+          Uri.parse('$baseUrl/scan'),
+          headers: const {'content-type': 'application/json'},
+          body: jsonEncode({'payload': payload, 'symbology': symbology}),
+        )
+        .timeout(_timeout);
+
+    // 422: the code could not be read. 503: the registry could not be reached.
+    if (res.statusCode == 422 || res.statusCode == 503) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      throw ApiException(
+        body['detail'] as String? ?? 'This code could not be checked.',
+        statusCode: res.statusCode,
+      );
+    }
+    if (res.statusCode != 200) {
+      throw ApiException('Gateway at $baseUrl returned ${res.statusCode}', statusCode: res.statusCode);
+    }
+    return ScanVerdict.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+  }
+
+  /// Example verdicts, for the example screens on the home page only.
   Future<ScanVerdict> mockScan(String testCase) async {
     final res = await _client
         .get(Uri.parse('$baseUrl/mock/scan?case=$testCase'))
@@ -81,16 +105,6 @@ class MedVerifyApi {
       throw ApiException('Gateway returned ${res.statusCode}', statusCode: res.statusCode);
     }
     return ScanVerdict.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
-  }
-
-  /// Pick the fixture that matches what was actually scanned, so Phase 1 feels
-  /// like the real thing: an unserialised code can only ever return
-  /// NOT_SERIALIZED, and a batch-level code can only ever return a
-  /// low-confidence result.
-  String caseFor(ParsedCode code) {
-    if (code.scheme == 'GTIN_ONLY') return 'not_serialized';
-    if (!code.unitLevel) return 'batch_level';
-    return 'genuine';
   }
 
   void close() => _client.close();

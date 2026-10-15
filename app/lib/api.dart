@@ -82,8 +82,16 @@ class MedVerifyApi {
         )
         .timeout(_timeout);
 
-    // 422: the code could not be read. 503: the registry could not be reached.
-    if (res.statusCode == 422 || res.statusCode == 503) {
+    // 422: not a code we can read. The server's reason is technical (it quotes
+    // the raw code), so the user gets a plain sentence instead.
+    if (res.statusCode == 422) {
+      throw ApiException(
+        "This isn't a medicine code MedVerify can read. Scan the QR or square code on the medicine box.",
+        statusCode: 422,
+      );
+    }
+    // 503: the registry could not be reached. The server's message is already plain.
+    if (res.statusCode == 503) {
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       throw ApiException(
         body['detail'] as String? ?? 'This code could not be checked.',

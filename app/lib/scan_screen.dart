@@ -1,8 +1,8 @@
 /// Scanner screen.
 ///
-/// Formats are QR, DataMatrix *and* EAN-13 — not QR alone. An Indian pharmacy
-/// shelf has all three on it, and a linear barcode must produce an honest
-/// "cannot be checked" rather than a scanner that appears broken.
+/// Reads QR, DataMatrix and EAN-13 — an Indian pharmacy shelf has all three.
+/// Only codes inside the square are read, and after a problem the scanner
+/// waits for "Scan again" instead of retrying the same code in a loop.
 library;
 
 import 'package:flutter/material.dart';
@@ -23,10 +23,10 @@ class ScanScreen extends StatefulWidget {
 class _ScanScreenState extends State<ScanScreen> {
   final MobileScannerController _controller = MobileScannerController(
     formats: const [BarcodeFormat.qrCode, BarcodeFormat.dataMatrix, BarcodeFormat.ean13],
-    detectionSpeed: DetectionSpeed.noDuplicates,
   );
 
-  bool _busy = false;
+  bool _paused = false; // true while a code is being checked, or an error is showing
+  bool _checking = false; // true while waiting for the server
   String? _error;
 
   @override
@@ -36,36 +36,42 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Future<void> _onDetect(BarcodeCapture capture) async {
-    if (_busy) return;
-    final barcode = capture.barcodes.firstOrNull;
-    final payload = barcode?.rawValue;
-    if (payload == null || payload.isEmpty) return;
+    if (_paused) return; // ignore everything until the current code is dealt with
+
+    final barcode = capture.barcodes.where((b) => (b.rawValue ?? '').isNotEmpty).firstOrNull;
+    if (barcode == null) return;
 
     setState(() {
-      _busy = true;
+      _paused = true;
+      _checking = true;
       _error = null;
     });
-    await _controller.stop();
 
     try {
-      final verdict = await widget.api.scan(payload, _symbologyOf(barcode!.format));
+      final verdict = await widget.api.scan(barcode.rawValue!, _symbologyOf(barcode.format));
+      if (!mounted) return;
+
+      // Turn the camera off while the result is on screen, back on when we return.
+      await _controller.stop();
       if (!mounted) return;
       await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ResultScreen(verdict: verdict, parsed: null),
-        ),
+        MaterialPageRoute(builder: (_) => ResultScreen(verdict: verdict, parsed: null)),
       );
+      await _controller.start();
+      if (mounted) setState(() => _paused = false);
     } on ApiException catch (err) {
       if (mounted) setState(() => _error = err.message);
     } catch (_) {
-      if (mounted) {
-        setState(() => _error = 'Could not reach the server. Check it is running.');
-      }
+      if (mounted) setState(() => _error = 'Could not reach the server at ${widget.api.baseUrl}.');
     } finally {
-      if (mounted) setState(() => _busy = false);
-      await _controller.start();
+      if (mounted) setState(() => _checking = false);
     }
   }
+
+  void _scanAgain() => setState(() {
+        _error = null;
+        _paused = false;
+      });
 
   static String _symbologyOf(BarcodeFormat format) => switch (format) {
         BarcodeFormat.qrCode => 'QR_CODE',
@@ -88,53 +94,46 @@ class _ScanScreenState extends State<ScanScreen> {
           ),
         ],
       ),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          MobileScanner(controller: _controller, onDetect: _onDetect),
-          const _ReticleOverlay(),
-          if (_busy) const ColoredBox(color: Colors.black38, child: Center(child: CircularProgressIndicator())),
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 28,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_error != null) _ErrorBar(message: _error!),
-                const SizedBox(height: 10),
-                const _Hint(),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          // One square, centred in the camera view. The same rectangle is used
+          // to draw the frame and to decide which codes are read, so they can
+          // never disagree.
+          final size = constraints.biggest;
+          final side = size.shortestSide * 0.7;
+          final scanWindow = Rect.fromCenter(center: size.center(Offset.zero), width: side, height: side);
 
-class _ReticleOverlay extends StatelessWidget {
-  const _ReticleOverlay();
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Center(
-        child: Container(
-          width: 240,
-          height: 240,
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.white70, width: 2),
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              MobileScanner(controller: _controller, scanWindow: scanWindow, onDetect: _onDetect),
+              ScanWindowOverlay(
+                controller: _controller,
+                scanWindow: scanWindow,
+                borderColor: Colors.white,
+                borderWidth: 3,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 28,
+                child: _error != null
+                    ? _ErrorCard(message: _error!, onScanAgain: _scanAgain)
+                    : _Hint(checking: _checking),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
 class _Hint extends StatelessWidget {
-  const _Hint();
+  const _Hint({required this.checking});
+
+  final bool checking;
 
   @override
   Widget build(BuildContext context) {
@@ -144,38 +143,64 @@ class _Hint extends StatelessWidget {
         color: Colors.black.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: const Text(
-        'Point at the QR or barcode on the carton',
-        textAlign: TextAlign.center,
-        style: TextStyle(color: Colors.white, fontSize: 13.5),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (checking) ...[
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+            ),
+            const SizedBox(width: 10),
+          ],
+          Text(
+            checking ? 'Checking…' : 'Fit the code on the box inside the square',
+            style: const TextStyle(color: Colors.white, fontSize: 13.5),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _ErrorBar extends StatelessWidget {
-  const _ErrorBar({required this.message});
+class _ErrorCard extends StatelessWidget {
+  const _ErrorCard({required this.message, required this.onScanAgain});
 
   final String message;
+  final VoidCallback onScanAgain;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
       decoration: BoxDecoration(
         color: const Color(0xFFA8372A),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.error_outline, color: Colors.white, size: 19),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(color: Colors.white, fontSize: 13.5, height: 1.35),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white, size: 19),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(color: Colors.white, fontSize: 13.5, height: 1.35),
+                ),
+              ),
+            ],
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: onScanAgain,
+              style: TextButton.styleFrom(foregroundColor: Colors.white),
+              child: const Text('Scan again'),
             ),
           ),
         ],

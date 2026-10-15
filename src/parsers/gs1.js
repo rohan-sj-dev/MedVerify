@@ -98,9 +98,12 @@ function resolveAi(payload, pos) {
 
 /** Strip the AIM prefix and normalise separator spellings to real FNC1. */
 export function normalise(payload) {
-  let text = payload.trim().replace(AIM_PREFIX, '');
+  let text = payload.trim();
   for (const alias of SEPARATOR_ALIASES) text = text.split(alias).join(GS);
-  return text;
+  // A GS1 code starts with a special FNC1 marker. Phone scanners (Google ML
+  // Kit) often hand it over as a leading GS character, before or after the
+  // AIM prefix. JavaScript's trim() does not remove GS, so strip it here.
+  return text.replace(/^\x1d+/, '').replace(AIM_PREFIX, '').replace(/^\x1d+/, '');
 }
 
 /** Cheap detection, used by the dispatcher before committing to a parser. */

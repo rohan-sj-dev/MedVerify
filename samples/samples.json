@@ -1,0 +1,83 @@
+[
+  {
+    "id": "genuine-serialised",
+    "expect": "GENUINE",
+    "symbology": "DATA_MATRIX",
+    "what": "Issued serial, printed exactly as registered",
+    "payload": "(01)08901234567890(17)271130(10)B4471(21)SNB44710001",
+    "actual": "GENUINE",
+    "narrative": "This pack's serial number is registered to batch B4471 of Dolo 650, which expires Nov 2027. Copy detection is not active yet, so this confirms the serial was issued, not that this pack is the original."
+  },
+  {
+    "id": "genuine-batch-level",
+    "expect": "GENUINE",
+    "symbology": "QR_CODE",
+    "what": "CDSCO-style QR with no serial: registered batch, weaker result",
+    "payload": "{\"gtin\":\"08901234567913\",\"bn\":\"B6120\",\"exp\":\"04/2028\",\"brand\":\"Calpol 650\"}",
+    "actual": "GENUINE",
+    "narrative": "Batch B6120 of Calpol 650 is registered and in date. This code is shared by every pack in the batch, so it cannot show whether this pack is a copy."
+  },
+  {
+    "id": "counterfeit-unissued-serial",
+    "expect": "COUNTERFEIT",
+    "symbology": "DATA_MATRIX",
+    "what": "Plausible serial no manufacturer ever issued",
+    "payload": "(01)08901234567890(17)271130(10)B4471(21)SNB44719999",
+    "actual": "COUNTERFEIT",
+    "narrative": "No manufacturer has ever issued this serial number. Do not take this medicine. Return it to the pharmacy you bought it from and report it."
+  },
+  {
+    "id": "counterfeit-batch-swap",
+    "expect": "COUNTERFEIT",
+    "symbology": "DATA_MATRIX",
+    "what": "Real serial lifted onto a pack printed with another batch",
+    "payload": "(01)08901234567890(17)271130(10)B4472(21)SNB44710002",
+    "actual": "COUNTERFEIT",
+    "narrative": "This serial belongs to batch B4471, but the pack is printed with batch B4472. Do not take this medicine. Return it to the pharmacy you bought it from and report it."
+  },
+  {
+    "id": "counterfeit-unregistered-batch",
+    "expect": "COUNTERFEIT",
+    "symbology": "QR_CODE",
+    "what": "Batch-level QR naming a batch that was never registered",
+    "payload": "{\"gtin\":\"08901234567913\",\"bn\":\"X0091\",\"exp\":\"04/2028\"}",
+    "actual": "COUNTERFEIT",
+    "narrative": "No manufacturer has registered batch X0091. Do not take this medicine. Return it to the pharmacy you bought it from and report it."
+  },
+  {
+    "id": "suspect-relabelled-expiry",
+    "expect": "SUSPECT",
+    "symbology": "DATA_MATRIX",
+    "what": "Real serial, but the printed expiry was pushed out a year",
+    "payload": "(01)08901234567890(17)281130(10)B4471(21)SNB44710003",
+    "actual": "SUSPECT",
+    "narrative": "The pack says it expires Nov 2028, but this batch was registered to expire Nov 2027. Do not take this medicine until a pharmacist has checked it."
+  },
+  {
+    "id": "suspect-expired",
+    "expect": "SUSPECT",
+    "symbology": "DATA_MATRIX",
+    "what": "Genuine pack from a batch that has expired",
+    "payload": "(01)08901234567890(17)260430(10)B3302(21)SNB33020001",
+    "actual": "SUSPECT",
+    "narrative": "This batch expired on 30 Apr 2026. Do not take this medicine until a pharmacist has checked it."
+  },
+  {
+    "id": "suspect-recalled",
+    "expect": "SUSPECT",
+    "symbology": "DATA_MATRIX",
+    "what": "Genuine pack from a recalled batch",
+    "payload": "(01)08901234567906(17)280131(10)B5590(21)SNB55900001",
+    "actual": "SUSPECT",
+    "narrative": "Batch B5590 has been recalled. Do not take this medicine. Return it to the pharmacy you bought it from."
+  },
+  {
+    "id": "not-serialised",
+    "expect": "NOT_SERIALIZED",
+    "symbology": "EAN_13",
+    "what": "Plain retail barcode: product identified, pack not checkable",
+    "payload": "8901234567890",
+    "actual": "NOT_SERIALIZED",
+    "narrative": "This barcode identifies Dolo 650, but carries no serial or batch, so this pack cannot be checked."
+  }
+]

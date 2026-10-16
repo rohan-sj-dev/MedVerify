@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "rootDir": ".",
+    "outDir": "../../dist/hyperledger",
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": ["client/**/*.ts"]
+}

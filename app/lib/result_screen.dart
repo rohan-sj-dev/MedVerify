@@ -274,6 +274,14 @@ class _AgentBlock extends StatelessWidget {
 
   final AgentResult agent;
 
+  // What each check is called on screen. The server's names are for programmers.
+  static const _titles = {
+    'ledger': 'Registry',
+    'recall': 'Recall notices',
+    'anomaly': 'Copy check',
+    'vision': 'Pack photo',
+  };
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -284,7 +292,7 @@ class _AgentBlock extends StatelessWidget {
           Row(
             children: [
               Text(
-                agent.agent.toUpperCase(),
+                (_titles[agent.agent] ?? agent.agent).toUpperCase(),
                 style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,

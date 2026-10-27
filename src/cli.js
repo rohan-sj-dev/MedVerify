@@ -39,6 +39,14 @@ try {
 } catch (err) {
   if (err instanceof ParseError) {
     console.error(`${err.name}: ${err.message}`);
+    // Windows PowerShell 5.1 strips the double quotes inside an argument, so
+    // '{"bn":"B4471"}' arrives as {bn:B4471}. Spot that and say how to fix it.
+    if (payload.startsWith('{') && !payload.includes('"')) {
+      console.error('\nThe JSON lost its double quotes on the way in — Windows PowerShell does this.');
+      console.error('Escape each one with a backslash:');
+      console.error(`  npm run parse -- '{\\"bn\\":\\"B4471\\",\\"exp\\":\\"11/2027\\"}' QR_CODE`);
+      console.error('or run the command in Git Bash or PowerShell 7 instead.');
+    }
     process.exit(1);
   }
   throw err;

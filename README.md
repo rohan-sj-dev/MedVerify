@@ -184,9 +184,51 @@ it and the manifest reference once the gateway is HTTPS.
 
 ---
 
-## Next: Phase 2
+## Phase 2 — real verification
 
-Apply the schema, stand up Postgres/PostGIS, and replace `/mock/scan` with a real `POST /scan`:
-parser → Ledger Agent → fusion → Narrator.
+`POST /scan` checks a pack against the registry: was the serial issued, does the printed
+batch, product and expiry match the record, is it expired or recalled. The verdict is decided
+in plain code (`fusion.js`); Claude only writes the explanation, and only when
+`ANTHROPIC_API_KEY` is set.
 
-Nothing in the app changes when that lands, because both halves speak the same frozen contract.
+```bash
+npm run seed     # demo registry + samples/index.html (stop the server first)
+npm start
+```
+
+Line-by-line explanation: [docs/phase-2-walkthrough.md](docs/phase-2-walkthrough.md).
+
+---
+
+## Synthetic supply chain
+
+A pretend supply chain with labelled fraud, for Phase 4 to learn from and be measured
+against: genuine packs, copied codes, diverted stock and relabelled expired stock.
+
+```bash
+npm run generate -- --units 50000 --clone-rate 0.04   # into .data/synthetic, ~25 s
+npm run baseline                                      # how well simple rules do
+```
+
+The demo registry in `.data/pglite` is not touched. The same `--seed` always rebuilds the
+same data.
+
+Simple rules on 50,000 packs (seed 42):
+
+| Rule | Catches | Wrongly flags genuine |
+|---|---|---|
+| Faster than 900 km/h between scans | 41% of copies | 0% |
+| More than 5 phones | 91% of copies | 0% |
+| Spread over 100 km | 96% of copies | 0.7% |
+| First scan 200+ km from its pharmacy | 87% of diversions | 0.1% |
+| Scanned after expiry | 100% of repacks | 0% |
+
+These are measured on synthetic data, so they are optimistic; real performance will be lower.
+Line-by-line explanation: [docs/phase-3-walkthrough.md](docs/phase-3-walkthrough.md).
+
+---
+
+## Next: Phase 4
+
+Combine those signals into the Anomaly Agent, so a copied code — which today only gets
+"GENUINE, 75%" — is caught at scan time.

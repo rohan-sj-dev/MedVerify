@@ -7,6 +7,7 @@
 
 import { randomUUID } from 'node:crypto';
 
+import { anomalyCheck } from './anomaly.js';
 import { ledgerCheck, recallCheck } from './checks.js';
 import { AgentResult, ScanVerdict } from './contracts/verdict.js';
 import { isoDay } from './format.js';
@@ -22,7 +23,7 @@ export function createVerifier({ db, narrator, salt, now = () => new Date() }) {
     const hash = serialHash(code, salt); // null when the code has no serial
     const scannedAt = now();
 
-    // 1. Look the pack up once, so both checks see the same record.
+    // 1. Look the pack up once, so every check sees the same record.
     let record;
     try {
       record = await lookUp(db, code, hash);
@@ -30,10 +31,13 @@ export function createVerifier({ db, narrator, salt, now = () => new Date() }) {
       throw new VerificationUnavailable('the registry could not be read', { cause: err });
     }
 
-    // 2. Run both checks at the same time.
+    // 2. Run the three checks at the same time. The anomaly check also needs
+    //    this scan itself: where and when it happened, and on which phone.
+    const thisScan = { at: scannedAt.getTime(), lat: location?.lat ?? null, lon: location?.lon ?? null, phone: device_id };
     const results = await Promise.all([
       runCheck('ledger', () => ledgerCheck(code, record, isoDay(scannedAt))),
       runCheck('recall', () => recallCheck(db, code, record)),
+      runCheck('anomaly', () => anomalyCheck(db, code, record, thisScan)),
     ]);
     if (results[0].verdict === 'ERROR') throw new VerificationUnavailable('the registry check failed');
 

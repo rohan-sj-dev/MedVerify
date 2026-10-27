@@ -36,9 +36,17 @@ export function fuse(results, { scheme, unitLevel }) {
   if (!unitLevel) {
     confidence = 0.55;
     warnings.push('This code is shared by every pack in the batch, so it cannot show whether this pack is a copy.');
-  } else if (!anomaly || anomaly.verdict === 'INSUFFICIENT_DATA') {
+  } else if (!anomaly) {
     confidence = 0.75;
-    warnings.push('Copy detection is not active yet, so this confirms the serial was issued, not that this pack is the original.');
+    warnings.push('Copy detection did not run, so this confirms the serial was issued, not that this pack is the original.');
+  } else if (anomaly.verdict === 'INSUFFICIENT_DATA') {
+    confidence = 0.75;
+    warnings.push('This code has too few scans so far to check it for copying.');
+  }
+  // Copies of other codes from this batch are circulating. Not a verdict on this pack.
+  if (anomaly?.evidence.some((e) => e.signal === 'batch_contagion')) {
+    confidence = Math.min(confidence, 0.6);
+    warnings.push('Codes from other packs in this batch have been copied. This pack shows no sign of it, but check the packaging carefully.');
   }
   for (const r of results.filter((r) => r.verdict === 'ERROR')) {
     confidence = Math.min(confidence, 0.6);

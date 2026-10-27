@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import 'api.dart';
+import 'device.dart';
 import 'result_screen.dart';
 
 class ScanScreen extends StatefulWidget {
@@ -29,6 +30,11 @@ class _ScanScreenState extends State<ScanScreen> {
   bool _checking = false; // true while waiting for the server
   String? _error;
 
+  // Fetched as soon as the scanner opens, so they are ready by the time a
+  // code is read and scanning never waits for the GPS.
+  final Future<String> _phone = phoneId();
+  late Future<Location?> _where = approximateLocation();
+
   @override
   void dispose() {
     _controller.dispose();
@@ -48,7 +54,12 @@ class _ScanScreenState extends State<ScanScreen> {
     });
 
     try {
-      final verdict = await widget.api.scan(barcode.rawValue!, _symbologyOf(barcode.format));
+      final verdict = await widget.api.scan(
+        barcode.rawValue!,
+        _symbologyOf(barcode.format),
+        location: await _where,
+        phoneId: await _phone,
+      );
       if (!mounted) return;
 
       // Turn the camera off while the result is on screen, back on when we return.
@@ -58,6 +69,7 @@ class _ScanScreenState extends State<ScanScreen> {
         MaterialPageRoute(builder: (_) => ResultScreen(verdict: verdict, parsed: null)),
       );
       await _controller.start();
+      _where = approximateLocation(); // the next scan may be somewhere else
       if (mounted) setState(() => _paused = false);
     } on ApiException catch (err) {
       if (mounted) setState(() => _error = err.message);

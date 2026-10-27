@@ -3,6 +3,9 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- Reaching the gateway. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Roughly where a scan happens, to spot one code scanned in several
+         cities at once. Coarse only: city-level is enough, and it's kinder to privacy. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application

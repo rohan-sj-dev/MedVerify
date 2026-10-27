@@ -3,6 +3,7 @@
 import { Context, Contract, Info, Returns, Transaction } from 'fabric-contract-api';
 
 import { NEXT, WHO } from './lifecycle';
+import { ROLE_OF_ORG } from './orgs';
 import type { Batch, Drug, Role, Unit, UnitStatus } from './types';
 
 @Info({ title: 'MedTrace', description: 'MedVerify medicine registry' })
@@ -97,11 +98,14 @@ export class MedTraceContract extends Contract {
 
 
 
+  // Who is calling. Both the organisation and its role come from the MSP ID,
+  // which Fabric verifies — never from certificate attributes, which any
+  // organisation's own CA can set to anything (see orgs.ts).
   private actor(ctx: Context): { org: string; role: Role } {
-    const org = ctx.clientIdentity.getAttributeValue('medverify.org');
-    const role = ctx.clientIdentity.getAttributeValue('medverify.role');
-    if (!org || !role) throw new Error('certificate is missing medverify.org / medverify.role');
-    return { org, role: role as Role };
+    const org = ctx.clientIdentity.getMSPID();
+    const role = Object.hasOwn(ROLE_OF_ORG, org) ? ROLE_OF_ORG[org] : undefined; // own entries only
+    if (!role) throw new Error(`organisation ${org} has no role on this network`);
+    return { org, role };
   }
 
   private requireRole(ctx: Context, roles: Role[]): { org: string; role: Role } {

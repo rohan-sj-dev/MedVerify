@@ -67,11 +67,12 @@ export async function seedDemo(db, { salt = DEV_SALT, now = new Date() } = {}) {
     if (serials.length) await addUnits(db, b.id, serials.map(hash), MAKER);
   }
 
-  // Walk packs down the supply chain: factory (Bengaluru) -> depot (Pune) -> pharmacy.
+  // Walk packs down the supply chain: factory -> depot (Pune) -> pharmacy (Kothrud).
+  // Each hand-over is recorded where the pack arrived, as in the synthetic data.
   const ship = async (batchId, n, dispense) => {
     const h = hash(serial(batchId, n));
-    await changeStatus(db, h, 'IN_TRANSIT', MAKER, { toOrg: DISTRIBUTOR.org, lat: 12.9716, lon: 77.5946 });
-    await changeStatus(db, h, 'AT_PHARMACY', DISTRIBUTOR, { toOrg: PHARMACY.org, lat: 18.5204, lon: 73.8567 });
+    await changeStatus(db, h, 'IN_TRANSIT', MAKER, { toOrg: DISTRIBUTOR.org, lat: 18.5204, lon: 73.8567 });
+    await changeStatus(db, h, 'AT_PHARMACY', DISTRIBUTOR, { toOrg: PHARMACY.org, lat: 18.5074, lon: 73.8077 });
     if (dispense) await changeStatus(db, h, 'DISPENSED', PHARMACY);
   };
   for (let n = 1; n <= 4; n++) await ship('B4471', n, true);
@@ -84,6 +85,27 @@ export async function seedDemo(db, { salt = DEV_SALT, now = new Date() } = {}) {
     batchId: 'B5590', gtin: GTIN.CROCIN, source: 'DEMO-REGULATOR', reference: 'DEMO/2026/014',
     reason: 'Demonstration notice: failed dissolution test (not a real recall)', issuedAt: isoDay(now),
   });
+
+  // Scan history, so copy detection (Phase 4) has something to see.
+  //   pack 1 — genuine: its owner scanned it twice, at home near the pharmacy
+  //   pack 4 — copied: its owner scanned it in Pune, then fake packs with the
+  //            same code were scanned in Mumbai, Delhi and Kolkata within half an hour
+  const ago = (days, minutes = 0) => new Date(now.getTime() - days * 86400000 + minutes * 60000).toISOString();
+  const history = [
+    [serial('B4471', 1), ago(20), 18.51, 73.81, 'demo-owner-1'],
+    [serial('B4471', 1), ago(12), 18.51, 73.81, 'demo-owner-1'],
+    [serial('B4471', 4), ago(10), 18.51, 73.81, 'demo-owner-4'],
+    [serial('B4471', 4), ago(2), 19.08, 72.88, 'demo-fake-a'], // Mumbai
+    [serial('B4471', 4), ago(2, 12), 28.7, 77.1, 'demo-fake-b'], // Delhi, 12 minutes later
+    [serial('B4471', 4), ago(2, 31), 22.57, 88.36, 'demo-fake-c'], // Kolkata
+  ];
+  for (const [sn, at, lat, lon, phone] of history) {
+    await db.query(
+      `INSERT INTO scans (serial_hash, gtin, batch_id, lat, lon, scanned_at, device_id, code_format, scheme)
+       VALUES ($1, $2, 'B4471', $3, $4, $5, $6, 'DATA_MATRIX', 'GS1')`,
+      [hash(sn), GTIN.DOLO, lat, lon, at, phone],
+    );
+  }
 }
 
 // The codes to scan, and the verdict each one must give.
@@ -110,6 +132,8 @@ export function demoSamples(now = new Date()) {
       payload: gs1(GTIN.DOLO, expired.expiryDate, 'B3302', serial('B3302', 1)) },
     { id: 'suspect-recalled', expect: 'SUSPECT', symbology: 'DATA_MATRIX', what: 'Real pack from a recalled batch',
       payload: gs1(GTIN.CROCIN, recalled.expiryDate, 'B5590', serial('B5590', 1)) },
+    { id: 'suspect-copied-code', expect: 'SUSPECT', symbology: 'DATA_MATRIX', what: 'Real serial whose code was copied: scanned in three cities within half an hour',
+      payload: gs1(GTIN.DOLO, current.expiryDate, 'B4471', serial('B4471', 4)) },
     { id: 'not-serialised', expect: 'NOT_SERIALIZED', symbology: 'EAN_13', what: 'Retail barcode: product known, pack not checkable',
       payload: GTIN.DOLO.slice(1) },
   ];

@@ -28,7 +28,7 @@ export function buildServer({ verify = null, log = console } = {}) {
   app.get('/health', (_req, res) => {
     res.json({
       status: 'ok',
-      phase: 2,
+      phase: 4,
       dev_salt_in_use: SERIAL_SALT === DEV_SALT,
       verification: verify ? 'ready' : 'unavailable',
       cases: CASES,

@@ -11,6 +11,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 
+import 'device.dart';
 import 'models.dart';
 
 class ApiException implements Exception {
@@ -73,12 +74,19 @@ class MedVerifyApi {
   }
 
   /// Verify a scanned pack against the registry (POST /scan).
-  Future<ScanVerdict> scan(String payload, String symbology) async {
+  /// `location` and `phoneId` let the server spot a copied code: one code
+  /// scanned in several places, or by many phones. Both may be null.
+  Future<ScanVerdict> scan(String payload, String symbology, {Location? location, String? phoneId}) async {
     final res = await _client
         .post(
           Uri.parse('$baseUrl/scan'),
           headers: const {'content-type': 'application/json'},
-          body: jsonEncode({'payload': payload, 'symbology': symbology}),
+          body: jsonEncode({
+            'payload': payload,
+            'symbology': symbology,
+            'location': location == null ? null : {'lat': location.lat, 'lon': location.lon},
+            'device_id': phoneId,
+          }),
         )
         .timeout(_timeout);
 

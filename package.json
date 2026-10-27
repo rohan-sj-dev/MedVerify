@@ -12,7 +12,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "parse": "node src/cli.js",
-    "seed": "node src/seed.js"
+    "seed": "node src/seed.js",
+    "generate": "node src/synthetic/generate.js",
+    "baseline": "node src/synthetic/baseline.js",
+    "evaluate": "node src/synthetic/evaluate.js"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",

@@ -25,12 +25,23 @@ export function fuse(results, { scheme, unitLevel }) {
   if (first('EXPIRED')) return decide('SUSPECT', 0.9, first('EXPIRED'));
   if (first('MISMATCH')) return decide('SUSPECT', 0.8, first('MISMATCH'));
 
-  // 4. The scan pattern looks like a copied code (Phase 4).
-  if (anomaly && (anomaly.verdict === 'CLONE_SUSPECTED' || anomaly.score > 0.75)) {
+  // 4. The scan pattern, or the registry's timeline, says the code was copied (Phase 4).
+  const diverted = anomaly?.verdict === 'DIVERTED';
+  if (anomaly && !diverted && (anomaly.verdict === 'CLONE_SUSPECTED' || anomaly.score > 0.75)) {
     return decide('SUSPECT', Math.max(0.7, anomaly.score), anomaly);
   }
 
-  // 5. Passed every check that ran. Lower the confidence for whatever could not run.
+  // 5. Sold far outside the supply chain it was registered to. Often real
+  //    medicine, but nobody can vouch for its storage or handling since it left
+  //    that chain, so it stays SUSPECT. The warning says why it differs from a
+  //    copy; regulators find these in agent_results.
+  if (diverted) {
+    return decide('SUSPECT', 0.7, anomaly, [
+      'The serial is registered and shows no sign of copying, but this pack was sold far from the pharmacy it was supplied to, outside its approved supply chain. How it was stored and handled since then cannot be checked.',
+    ]);
+  }
+
+  // 6. Passed every check that ran. Lower the confidence for whatever could not run.
   let confidence = 0.97;
   const warnings = [];
   if (!unitLevel) {

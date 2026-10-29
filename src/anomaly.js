@@ -12,6 +12,13 @@
 // A copied code gives CLONE_SUSPECTED, which fusion turns into SUSPECT — never
 // COUNTERFEIT. A copy means *some* pack with this code is fake, not that this
 // one is: the person scanning may be holding the original.
+//
+// A pack sold far from its pharmacy gives DIVERTED: sold outside its supply
+// chain. Fusion keeps it SUSPECT but explains it is diversion, not a copy.
+//
+// The timeline check compares scans with the registry: no customer can hold a
+// pack before it reaches a pharmacy, so an earlier scan means the code got
+// out ahead of the pack — copied on the printing line or at the plant.
 
 import { distanceKm } from './geo.js';
 
@@ -22,6 +29,13 @@ export const LIMITS = {
   spreadKm: 100, // scans further apart than a city...
   spreadPhones: 3, // ...count only with 3+ phones: an owner who travels uses the same phone
   offRouteKm: 200, // first scan this far from its pharmacy: sold outside its supply chain
+  recordLagHours: 24, // deliveries are sometimes entered late; a scan this close before one is not flagged
+};
+
+// Statuses at which no customer can be holding the pack yet.
+const NOT_YET_SOLD = {
+  COMMISSIONED: 'has not left the factory',
+  IN_TRANSIT: 'is still with the distributor and has not reached a pharmacy',
 };
 
 const HOUR = 60 * 60 * 1000;
@@ -56,8 +70,10 @@ function fastestHop(located) {
  * @param current  the scan happening now, same shape (lat/lon/phone may be null)
  * @param shop     where the registry delivered the pack: { lat, lon }, or null
  * @param batch    { flagged, scanned }: how many packs of this batch look copied, or null
+ * @param custody  what the registry says now: { status, arrivedAt (ms, when it reached
+ *                 its pharmacy, or null) }, or null if unknown
  */
-export function judgeScans(past, current, { shop = null, batch = null } = {}) {
+export function judgeScans(past, current, { shop = null, batch = null, custody = null } = {}) {
   const scans = [...past, current].sort((a, b) => a.at - b.at);
   const located = scans.filter((s) => s.lat !== null && s.lat !== undefined);
   const phones = new Set(scans.map((s) => s.phone).filter(Boolean)).size;
@@ -79,12 +95,25 @@ export function judgeScans(past, current, { shop = null, batch = null } = {}) {
     add('CLONE_SUSPECTED', 0.9, note('phone_count', phones, 'phones',
       `Scanned by ${phones} different phones; one pack is normally scanned by one or two`));
   }
+  // Timeline: the registry says no customer can have this pack yet.
+  if (custody && NOT_YET_SOLD[custody.status]) {
+    add('CLONE_SUSPECTED', custody.status === 'COMMISSIONED' ? 0.9 : 0.85, note('timeline', custody.status, 'status',
+      `The registry says this pack ${NOT_YET_SOLD[custody.status]}, yet its code is being scanned — the code has been copied`));
+  }
+  // Timeline: a scan from before the pack reached its pharmacy.
+  const early = custody?.arrivedAt != null && scans.find((s) => s.at < custody.arrivedAt - LIMITS.recordLagHours * HOUR);
+  if (early) {
+    add('CLONE_SUSPECTED', 0.85, note('timeline', Math.round((custody.arrivedAt - early.at) / HOUR), 'hours',
+      `Scanned ${howLong(custody.arrivedAt - early.at)} before the pack reached its pharmacy — the code was out before the pack was`));
+  }
   if (spread > LIMITS.spreadKm && phones >= LIMITS.spreadPhones) {
     add('CLONE_SUSPECTED', 0.8, note('spread', Math.round(spread), 'km',
       `Scanned in places up to ${Math.round(spread)} km apart, by ${phones} phones`));
   }
+  // Diversion comes last, so any sign of copying above names the verdict instead.
+  // Its score stays under fusion's 0.75 copy line, so it is not reported as a copy.
   if (fromShop > LIMITS.offRouteKm) {
-    add('MISMATCH', 0.7, note('off_route', Math.round(fromShop), 'km',
+    add('DIVERTED', 0.6, note('off_route', Math.round(fromShop), 'km',
       `First scanned ${Math.round(fromShop)} km from the pharmacy it was delivered to`));
   }
 
@@ -145,11 +174,16 @@ export async function anomalyCheck(db, code, { unit, batch }, current) {
     [unit.serial_hash],
   );
   const shop = await db.query(
-    'SELECT lat, lon FROM custody_events WHERE serial_hash = $1 AND lat IS NOT NULL ORDER BY occurred_at DESC LIMIT 1',
+    'SELECT lat, lon, occurred_at FROM custody_events WHERE serial_hash = $1 AND lat IS NOT NULL ORDER BY occurred_at DESC LIMIT 1',
     [unit.serial_hash],
   );
   const contagion = await db.query(BATCH_SQL, [batch.batch_id]);
 
+  // Once a pack is at a pharmacy, its latest hand-over is the delivery to it:
+  // no customer can have scanned it before then.
+  const delivered = ['AT_PHARMACY', 'DISPENSED'].includes(unit.status);
+  const custody = { status: unit.status, arrivedAt: delivered ? shop.rows[0]?.occurred_at?.getTime() ?? null : null };
+
   const past = history.rows.map((r) => ({ at: r.scanned_at.getTime(), lat: r.lat, lon: r.lon, phone: r.device_id }));
-  return judgeScans(past, current, { shop: shop.rows[0] ?? null, batch: contagion.rows[0] });
+  return judgeScans(past, current, { shop: shop.rows[0] ?? null, batch: contagion.rows[0], custody });
 }

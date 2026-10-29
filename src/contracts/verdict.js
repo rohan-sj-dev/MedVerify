@@ -33,6 +33,10 @@ export const AgentVerdict = z.enum([
   /** No history to judge from. Must never be read as approval. */
   'INSUFFICIENT_DATA',
   'ERROR',
+   /**
+   * Registered and not copied, but first sold far from the pharmacy the
+   * registry delivered it to (grey market) */
+  'DIVERTED',
 ]);
 
 /** Registry lifecycle. Transitions are enforced in Phase 2. */

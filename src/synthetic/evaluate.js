@@ -16,6 +16,14 @@ import { parseArgs } from 'node:util';
 import { judgeScans } from '../anomaly.js';
 import { buildWorld } from './generate.js';
 
+// What the registry would say about the pack at a given moment.
+function statusAt(unit, at) {
+  if (unit.sold && at >= unit.sold) return 'DISPENSED';
+  if (unit.atShop && at >= unit.atShop) return 'AT_PHARMACY';
+  if (unit.shipped && at >= unit.shipped) return 'IN_TRANSIT';
+  return 'COMMISSIONED';
+}
+
 // For each scanned pack: was it flagged, and at which of its scans?
 export function replay(world) {
   return world.units
@@ -23,8 +31,10 @@ export function replay(world) {
     .map((unit) => {
       for (let i = 0; i < unit.scans.length; i++) {
         // Everything before scan i is the history; scan i is "now".
-        const result = judgeScans(unit.scans.slice(0, i), unit.scans[i], { shop: unit.shop });
-        if (result.verdict === 'CLONE_SUSPECTED' || result.verdict === 'MISMATCH') {
+        const now = unit.scans[i].at;
+        const custody = { status: statusAt(unit, now), arrivedAt: unit.atShop && unit.atShop <= now ? unit.atShop : null };
+        const result = judgeScans(unit.scans.slice(0, i), unit.scans[i], { shop: unit.shop, custody });
+        if (result.verdict === 'CLONE_SUSPECTED' || result.verdict === 'DIVERTED') {
           return { label: unit.label, flaggedAt: i + 1, as: result.verdict };
         }
       }

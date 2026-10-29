@@ -80,6 +80,14 @@ export async function seedDemo(db, { salt = DEV_SALT, now = new Date() } = {}) {
   for (let n = 1; n <= 2; n++) await ship('B3302', n, false);
   for (let n = 1; n <= 3; n++) await ship('B5590', n, false);
 
+  // Date the hand-overs before the scan history below (which goes back 20
+  // days), or the timeline check would rightly call those scans impossible.
+  await db.query(
+    `UPDATE custody_events
+        SET occurred_at = $1::timestamptz - CASE to_org WHEN $2 THEN interval '40 days' ELSE interval '30 days' END`,
+    [now.toISOString(), DISTRIBUTOR.org],
+  );
+
   await recallBatch(db, 'B5590', REGULATOR);
   await addRecall(db, {
     batchId: 'B5590', gtin: GTIN.CROCIN, source: 'DEMO-REGULATOR', reference: 'DEMO/2026/014',

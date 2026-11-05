@@ -38,7 +38,8 @@ class ResultScreen extends StatelessWidget {
             const SizedBox(height: 16),
             _NarrativeCard(text: verdict.narrative!),
           ],
-          if (!verdict.unitLevel) ...[
+          // A plain barcode is already explained by its verdict; this notice is for batch-level QR codes.
+          if (!verdict.unitLevel && verdict.verdict != VerdictLevel.notSerialized) ...[
             const SizedBox(height: 16),
             const _BatchLevelNotice(),
           ],
@@ -111,7 +112,8 @@ class _Banner extends StatelessWidget {
             style.summary,
             style: TextStyle(color: style.onColor.withValues(alpha: 0.92), height: 1.4),
           ),
-          if (verdict.anyAgentAbstained) ...[
+          // Only a GENUINE result is weakened by a check that could not run.
+          if (verdict.verdict == VerdictLevel.genuine && verdict.anyAgentAbstained) ...[
             const SizedBox(height: 10),
             Text(
               'Some checks could not run, so this result is weaker than usual.',
@@ -233,8 +235,8 @@ class _BatchLevelNotice extends StatelessWidget {
             SizedBox(width: 12),
             Expanded(
               child: Text(
-                'This code is shared by every pack in the batch, so it cannot be checked for '
-                'copying. A pack with its own serial number can be checked much more strongly.',
+                'MedVerify cannot tell from this code whether it was copied from another pack. '
+                'Check the packaging carefully too.',
                 style: TextStyle(color: Color(0xFF5A4409), height: 1.4, fontSize: 13.5),
               ),
             ),
@@ -279,6 +281,7 @@ class _AgentBlock extends StatelessWidget {
     'ledger': 'Registry',
     'recall': 'Recall notices',
     'anomaly': 'Copy check',
+    'web': 'Web check',
     'vision': 'Pack photo',
   };
 

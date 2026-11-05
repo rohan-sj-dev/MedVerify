@@ -186,7 +186,9 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '
   await seedDemo(db, { salt, now });
 
   // Check every sample through the real verifier before handing it out.
-  const verify = createVerifier({ db, narrator: createNarrator(), salt, now: () => now });
+  // Offline: the demo samples are made up, so there is nothing to look up on the web.
+  const offline = { lookUp: async () => null, open: async () => { throw new Error('offline'); } };
+  const verify = createVerifier({ db, narrator: createNarrator(), salt, now: () => now, web: offline });
   const samples = demoSamples(now);
   let wrong = 0;
   for (const s of samples) {

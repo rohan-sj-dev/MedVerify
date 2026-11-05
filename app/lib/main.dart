@@ -103,6 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ('Suspect — cloned code', 'suspect'),
               ('Counterfeit — serial never issued', 'counterfeit'),
               ('Retail barcode, not serialised', 'not_serialized'),
+              ('Not in registry — alerts searched', 'unverified'),
             ])
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),

@@ -18,15 +18,25 @@ export function ledgerCheck(code, { unit, batch, drug }, today) {
   if (code.scheme === 'GTIN_ONLY') {
     return unsure('cannot_check', drug
       ? `This barcode identifies ${drugName(drug)}, but carries no serial or batch, so this pack cannot be checked`
-      : 'This barcode is not in the drug catalogue');
+      : 'This barcode is not in the MedVerify registry');
   }
   if (code.serial === null && code.batch === null) {
+    // A bare web link: nothing for the registry to look up, but the web agent can open it.
+    if (/^https?:\/\//i.test(String(code.raw).trim())) {
+      return unsure('not_in_registry', 'This code is only a web link, so there is nothing to look up in the MedVerify registry');
+    }
     return unsure('cannot_check', 'The code carries neither a serial nor a batch number to look up');
   }
 
-  // Never registered at all.
-  if (code.serial !== null && !unit) return notFound('No manufacturer has ever issued this serial number');
-  if (!batch) return notFound(`No manufacturer has registered batch ${printed(code.batch)}`);
+  // A missing serial or batch only proves a fake if the product itself is in the
+  // registry: then its maker uses MedVerify and would have registered the pack.
+  // A product the registry has never heard of tells us nothing either way.
+  if ((code.serial !== null && !unit) || !batch) {
+    if (!drug) return unsure('not_in_registry', "This product isn't in the MedVerify registry, so this pack can't be confirmed against it");
+    return notFound(code.serial !== null
+      ? 'No manufacturer has ever issued this serial number'
+      : `No manufacturer has registered batch ${printed(code.batch)}`);
+  }
 
   // Registered — now look for problems, most serious first.
   // The first problem found decides this check's verdict.

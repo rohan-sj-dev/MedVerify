@@ -13,6 +13,9 @@ import { CASES, fixture } from './fixtures/verdicts.js';
 import { narratorFromEnv } from './narrator.js';
 import { ParseError, isoDate, parseCode, serialHash } from './parsers/index.js';
 import { VerificationUnavailable, createVerifier } from './verify.js';
+import { browserPath, closeBrowser, renderPage } from './web/browser.js';
+import { readerFromEnv } from './web/reader.js';
+import { refreshAlerts } from './web/refresh.js';
 
 export const DEV_SALT = 'dev-only-salt-change-me';
 const SERIAL_SALT = process.env.SERIAL_SALT ?? DEV_SALT;
@@ -108,7 +111,12 @@ export function buildServer({ verify = null, log = console } = {}) {
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/'))) {
   const db = await openDatabase(process.env.DB_DIR ?? '.data/pglite');
   const narrator = narratorFromEnv();
-  const verify = createVerifier({ db, narrator, salt: SERIAL_SALT });
+  // The web agent opens pages that need JavaScript in Chrome or Edge, if this machine has one,
+  // and lets Claude read pages its rules can't, if an API key is set.
+  const reader = readerFromEnv();
+  const render = browserPath() ? renderPage : null;
+  const verify = createVerifier({ db, narrator, salt: SERIAL_SALT, web: { render, reader } });
+  console.log(`web agent: browser ${browserPath() ?? 'none (set CHROME_PATH)'} · pages read by ${reader.usesClaude ? 'rules, then Claude' : 'rules only'}`);
 
   const { rows } = await db.query('SELECT count(*)::int AS units FROM units');
   console.log(`registry: ${rows[0].units} units · explanations: ${narrator.source}`);
@@ -119,6 +127,17 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '
     console.log(`medverify gateway listening on http://0.0.0.0:${port}`);
   });
 
+  // The web agent's copy of CDSCO's alerts: refresh now and then daily, in the
+  // background, so scanning never waits for it. WEB_AGENT=off skips this.
+  if (process.env.WEB_AGENT !== 'off') {
+    const refresh = () =>
+      refreshAlerts(db, { log: { log() {} } })
+        .then((r) => console.log(`web agent: ${r.read} new alert lists (${r.rows} rows)${r.failed.length ? `, ${r.failed.length} failed` : ''}`))
+        .catch((err) => console.warn(`web agent: could not reach CDSCO (${err.message})`));
+    refresh();
+    setInterval(refresh, 24 * 60 * 60 * 1000).unref();
+  }
+
   // PGlite saves to disk, so close it cleanly on Ctrl+C.
-  process.on('SIGINT', () => server.close(() => db.close().finally(() => process.exit(0))));
+  process.on('SIGINT', () => server.close(() => closeBrowser().then(() => db.close()).finally(() => process.exit(0))));
 }

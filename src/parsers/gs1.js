@@ -51,7 +51,10 @@ const FIXED = {
   '01': 14, // GTIN
   '02': 14, // GTIN of contained trade items
   11: 6, // production date
+  12: 6, // due date
+  13: 6, // packaging date
   15: 6, // best before
+  16: 6, // sell by
   17: 6, // expiration date
 };
 
@@ -70,6 +73,17 @@ const VARIABLE = {
   712: 20,
   713: 20,
   714: 20,
+  // 91-99: the company's own fields. Real Indian packs use them (MRP, plant
+  // codes…); we don't need them, but must not reject the code because of them.
+  91: 90,
+  92: 90,
+  93: 90,
+  94: 90,
+  95: 90,
+  96: 90,
+  97: 90,
+  98: 90,
+  99: 90,
 };
 
 /**

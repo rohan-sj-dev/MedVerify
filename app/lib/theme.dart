@@ -62,6 +62,14 @@ class VerdictStyle {
           headline: 'Cannot be checked',
           summary: 'This barcode identifies the product, not this pack.',
         );
+      case VerdictLevel.unverified:
+        return const VerdictStyle(
+          color: Color(0xFF47555F),
+          onColor: Colors.white,
+          icon: Icons.travel_explore_outlined,
+          headline: 'Not confirmed',
+          summary: 'This product is not in the registry. Public alerts were searched instead.',
+        );
     }
   }
 }

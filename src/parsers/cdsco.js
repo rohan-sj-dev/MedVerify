@@ -120,14 +120,24 @@ export function collect(payload) {
     );
   }
 
-  // 2. Verification URL with query parameters
+  // 2. Verification URL. Its query parameters are the fields; a bare link
+  //    (https://maker.in/v/AB12) has none, and the web agent opens it instead.
   if (/^https?:\/\//i.test(text)) {
-    const { searchParams } = new URL(text);
-    const pairs = Object.fromEntries([...searchParams].filter(([, v]) => v !== ''));
-    if (Object.keys(pairs).length === 0) {
-      throw new ParseError('verification URL carries no query parameters');
+    let url;
+    try {
+      url = new URL(text);
+    } catch {
+      throw new ParseError('payload looks like a web link but is not a valid one');
     }
-    return pairs;
+    const fields = Object.fromEntries([...url.searchParams].filter(([, v]) => v !== ''));
+    // GS1 Digital Link paths, as on Abbott's packs (abbott.psverify.com/21/UCWRH4DDB):
+    // /21/ is this pack's own serial and /10/ its batch. The serial keeps the
+    // site's name, so two makers' serials can never be taken for one pack.
+    const serial = url.pathname.match(/\/21\/([A-Za-z0-9._~-]{4,40})(?:\/|$)/)?.[1];
+    const batch = url.pathname.match(/\/10\/([A-Za-z0-9._~-]{1,20})(?:\/|$)/)?.[1];
+    if (serial && !('serial' in fields)) fields.serial = `${url.hostname}/${serial}`;
+    if (batch && !('batch' in fields)) fields.batch = batch;
+    return fields;
   }
 
   // 3. Delimited key=value text
@@ -198,6 +208,10 @@ export function parse(payload, { symbology = Symbology.QR_CODE } = {}) {
 
   if (expiry && mfgDate && expiry < mfgDate) {
     warnings.push('expiry date precedes manufacture date');
+  }
+
+  if (Object.keys(rawFields).length === 0) {
+    warnings.push('link only — the code carries no fields; the web agent opens the link to check it');
   }
 
   let serial = mapped.serial ?? null;

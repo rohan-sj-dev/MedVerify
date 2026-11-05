@@ -165,25 +165,29 @@ const BATCH_SQL = `
 
 // Load this pack's history from the database, then judge it.
 // `current` is the scan happening now: { at, lat, lon, phone }.
-export async function anomalyCheck(db, code, { unit, batch }, current) {
+// `hash` is this code's serial hash. A serial the registry doesn't know (a
+// maker that isn't on MedVerify, like Abbott's psverify links) is still traced
+// through MedVerify's own scan log, just without a pharmacy or batch to compare.
+export async function anomalyCheck(db, code, { unit, batch }, current, hash = unit?.serial_hash ?? null) {
   if (!code.unitLevel) return unsure('This code is shared by every pack in the batch, so its scans cannot be traced to one pack');
-  if (!unit) return unsure('This serial is not registered, so there is no pack to trace');
+  const key = unit?.serial_hash ?? hash;
+  if (!key) return unsure('This serial is not registered, so there is no pack to trace');
 
   const history = await db.query(
     'SELECT scanned_at, lat, lon, device_id FROM scans WHERE serial_hash = $1 ORDER BY scanned_at',
-    [unit.serial_hash],
+    [key],
   );
-  const shop = await db.query(
-    'SELECT lat, lon, occurred_at FROM custody_events WHERE serial_hash = $1 AND lat IS NOT NULL ORDER BY occurred_at DESC LIMIT 1',
-    [unit.serial_hash],
-  );
-  const contagion = await db.query(BATCH_SQL, [batch.batch_id]);
+  // Pharmacy, batch and timeline come from the registry, so only a registered pack has them.
+  const shop = unit
+    ? await db.query('SELECT lat, lon, occurred_at FROM custody_events WHERE serial_hash = $1 AND lat IS NOT NULL ORDER BY occurred_at DESC LIMIT 1', [key])
+    : { rows: [] };
+  const contagion = batch ? await db.query(BATCH_SQL, [batch.batch_id]) : { rows: [] };
 
   // Once a pack is at a pharmacy, its latest hand-over is the delivery to it:
   // no customer can have scanned it before then.
-  const delivered = ['AT_PHARMACY', 'DISPENSED'].includes(unit.status);
-  const custody = { status: unit.status, arrivedAt: delivered ? shop.rows[0]?.occurred_at?.getTime() ?? null : null };
+  const delivered = ['AT_PHARMACY', 'DISPENSED'].includes(unit?.status);
+  const custody = unit ? { status: unit.status, arrivedAt: delivered ? shop.rows[0]?.occurred_at?.getTime() ?? null : null } : null;
 
   const past = history.rows.map((r) => ({ at: r.scanned_at.getTime(), lat: r.lat, lon: r.lon, phone: r.device_id }));
-  return judgeScans(past, current, { shop: shop.rows[0] ?? null, batch: contagion.rows[0], custody });
+  return judgeScans(past, current, { shop: shop.rows[0] ?? null, batch: contagion.rows[0] ?? null, custody });
 }

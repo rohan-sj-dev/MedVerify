@@ -6,6 +6,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import 'api.dart';
@@ -41,11 +42,29 @@ class _ScanScreenState extends State<ScanScreen> {
     super.dispose();
   }
 
+  // When a plain barcode was first seen with no QR code beside it (see _pick).
+  DateTime? _barcodeSince;
+
+  // Many packs carry a QR code or DataMatrix right next to a plain barcode, and
+  // the QR code tells far more. So take a QR code or DataMatrix whenever one is
+  // in view, and a plain barcode only after a moment with nothing better.
+  Barcode? _pick(BarcodeCapture capture) {
+    final codes = capture.barcodes.where((b) => (b.rawValue ?? '').isNotEmpty).toList();
+    final twoD = codes.where((b) => b.format != BarcodeFormat.ean13).firstOrNull;
+    if (twoD != null) return twoD;
+    final plain = codes.firstOrNull;
+    if (plain == null) return null;
+    _barcodeSince ??= DateTime.now();
+    if (DateTime.now().difference(_barcodeSince!) < const Duration(milliseconds: 800)) return null;
+    return plain;
+  }
+
   Future<void> _onDetect(BarcodeCapture capture) async {
     if (_paused) return; // ignore everything until the current code is dealt with
 
-    final barcode = capture.barcodes.where((b) => (b.rawValue ?? '').isNotEmpty).firstOrNull;
+    final barcode = _pick(capture);
     if (barcode == null) return;
+    _barcodeSince = null;
 
     setState(() {
       _paused = true;
@@ -54,11 +73,35 @@ class _ScanScreenState extends State<ScanScreen> {
     });
 
     try {
+      // A plain barcode, or a QR code that is only a web link, carries no
+      // batch number. Ask for the one printed on the pack, so the server can
+      // look for it on the maker's website and in CDSCO's alerts.
+      final raw = barcode.rawValue!.trim();
+      final bareLink = RegExp(r'^https?://', caseSensitive: false).hasMatch(raw) && !raw.contains('?');
+      String? batch;
+      if (barcode.format == BarcodeFormat.ean13 || bareLink) {
+        setState(() => _checking = false);
+        batch = await showDialog<String>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => _BatchDialog(
+            why: bareLink
+                ? "This QR code opens a website. If the pack shows a batch number (B.No.), type it to "
+                    'check it against what the website says. You can skip this.'
+                : 'This barcode names the medicine, not the batch. Type the batch number printed '
+                    'near it (B.No.) to check it against CDSCO alerts.',
+          ),
+        );
+        if (!mounted) return;
+        setState(() => _checking = true);
+      }
+
       final verdict = await widget.api.scan(
         barcode.rawValue!,
         _symbologyOf(barcode.format),
         location: await _where,
         phoneId: await _phone,
+        printedBatch: batch,
       );
       if (!mounted) return;
 
@@ -72,7 +115,10 @@ class _ScanScreenState extends State<ScanScreen> {
       _where = approximateLocation(); // the next scan may be somewhere else
       if (mounted) setState(() => _paused = false);
     } on ApiException catch (err) {
-      if (mounted) setState(() => _error = err.message);
+      // For a code that can't be read, show what was in it, so it can be reported.
+      final shown = barcode.rawValue!.length > 80 ? '${barcode.rawValue!.substring(0, 80)}…' : barcode.rawValue!;
+      final message = err.statusCode == 422 ? '${err.message}\n\nIt reads: $shown' : err.message;
+      if (mounted) setState(() => _error = message);
     } catch (_) {
       if (mounted) setState(() => _error = 'Could not reach the server at ${widget.api.baseUrl}.');
     } finally {
@@ -138,6 +184,63 @@ class _ScanScreenState extends State<ScanScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+/// Asks for the batch number printed on the strip ("B.No. ROM401I").
+/// Returns it, or null if the person skips.
+class _BatchDialog extends StatefulWidget {
+  const _BatchDialog({required this.why});
+
+  final String why; // why the batch is needed, for this kind of code
+
+  @override
+  State<_BatchDialog> createState() => _BatchDialogState();
+}
+
+class _BatchDialogState extends State<_BatchDialog> {
+  final _text = TextEditingController();
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  // Only what a batch number can contain, starting with a letter or digit.
+  String? get _batch {
+    final batch = _text.text.trim().replaceFirst(RegExp(r'^[^A-Za-z0-9]+'), '');
+    return batch.isEmpty ? null : batch.toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Batch number'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(widget.why),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _text,
+            autofocus: true,
+            textCapitalization: TextCapitalization.characters,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9./ -]')),
+              LengthLimitingTextInputFormatter(30),
+            ],
+            decoration: const InputDecoration(hintText: 'e.g. ROM401I', border: OutlineInputBorder()),
+            onSubmitted: (_) => Navigator.of(context).pop(_batch),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Skip')),
+        FilledButton(onPressed: () => Navigator.of(context).pop(_batch), child: const Text('Check')),
+      ],
     );
   }
 }

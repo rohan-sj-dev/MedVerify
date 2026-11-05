@@ -20,6 +20,8 @@ export const VerdictLevel = z.enum([
   'COUNTERFEIT',
   /** A valid code that cannot identify a pack — a linear retail barcode. */
   'NOT_SERIALIZED',
+  /** The product isn't in the MedVerify registry, so the pack can't be confirmed against it. */
+  'UNVERIFIED',
 ]);
 
 /** One agent's own finding, before fusion. */
@@ -137,6 +139,8 @@ export const ScanRequest = z.object({
   /** Hashed client-side; never a raw device identifier. */
   device_id: z.string().nullable().default(null),
   photo_count: z.number().int().nonnegative().default(0),
+  /** The batch number printed on the pack, typed in by the person when the code carries none. Letters, digits, - / . only. */
+  printed_batch: z.string().trim().max(30).regex(/^[A-Za-z0-9][A-Za-z0-9 ./-]*$/).nullable().default(null),
 });
 
 /** The request body of `POST /parse`. */

@@ -10,7 +10,9 @@ enum VerdictLevel {
   genuine('GENUINE'),
   suspect('SUSPECT'),
   counterfeit('COUNTERFEIT'),
-  notSerialized('NOT_SERIALIZED');
+  notSerialized('NOT_SERIALIZED'),
+  // Not in the MedVerify registry, and nothing found against it on the web.
+  unverified('UNVERIFIED');
 
   const VerdictLevel(this.wire);
   final String wire;
@@ -95,7 +97,7 @@ class DrugRef {
         gtin: json['gtin'] as String?,
       );
 
-  String get title => brand ?? salt ?? 'Unidentified medicine';
+  String get title => brand ?? salt ?? 'Not in the MedVerify registry';
 
   String? get subtitle {
     final parts = [salt, strength, form].whereType<String>().toList();

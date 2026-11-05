@@ -15,7 +15,8 @@
     "seed": "node src/seed.js",
     "generate": "node src/synthetic/generate.js",
     "baseline": "node src/synthetic/baseline.js",
-    "evaluate": "node src/synthetic/evaluate.js"
+    "evaluate": "node src/synthetic/evaluate.js",
+    "web-refresh": "node src/web/refresh.js"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",
@@ -31,6 +32,8 @@
     "@hyperledger/fabric-gateway": "~1.11.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "puppeteer-core": "^24.43.1",
+    "unpdf": "^1.9.1",
     "zod": "^4.6.5"
   }
 }

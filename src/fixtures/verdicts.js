@@ -165,6 +165,34 @@ const build = {
       'than the individual pack, so it cannot be checked for copying — the result is weaker ' +
       'than for a serialised pack.',
   }),
+
+  unverified: () => ({
+    ...base(),
+    verdict: 'UNVERIFIED',
+    confidence: 0.0,
+    unit_level: false,
+    drug: { gtin: null, brand: null, salt: null, strength: null, form: null, narrow_therapeutic_index: false },
+    batch: {},
+    agents: [
+      {
+        agent: 'ledger',
+        verdict: 'INSUFFICIENT_DATA',
+        score: null,
+        evidence: [{ signal: 'not_in_registry', detail: "This product isn't in the MedVerify registry, so this pack can't be confirmed against it" }],
+      },
+      {
+        agent: 'web',
+        verdict: 'OK',
+        score: 0,
+        evidence: [{ signal: 'web_alerts', detail: "Batch A7731 is not on CDSCO's spurious or substandard drug lists (12 lists, Jan 2025 to Dec 2025)" }],
+      },
+    ],
+    narrative:
+      "This product isn't in the MedVerify registry, so this pack can't be confirmed against it. " +
+      "Batch A7731 is not on CDSCO's spurious or substandard drug lists. Buy medicines only from a " +
+      'licensed pharmacy, and check the packaging carefully.',
+    warnings: ["Batch A7731 is not on CDSCO's spurious or substandard drug lists (12 lists, Jan 2025 to Dec 2025)"],
+  }),
 };
 
 export const CASES = Object.keys(build);

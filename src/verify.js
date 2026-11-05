@@ -14,12 +14,16 @@ import { isoDay } from './format.js';
 import { fuse } from './fusion.js';
 import { getBatch, getDrug, getUnit } from './ledger.js';
 import { parseCode, serialHash } from './parsers/index.js';
+import { webCheck } from './web-agent.js';
 
 export class VerificationUnavailable extends Error {}
 
-export function createVerifier({ db, narrator, salt, now = () => new Date() }) {
-  return async function verify({ payload, symbology, location = null, device_id = null }) {
-    const code = parseCode(payload, symbology); // throws ParseError if the code is unreadable
+// web: how the web agent reaches the internet ({ open, lookUp }). Tests pass fakes.
+export function createVerifier({ db, narrator, salt, now = () => new Date(), web = {} }) {
+  return async function verify({ payload, symbology, location = null, device_id = null, printed_batch = null }) {
+    let code = parseCode(payload, symbology); // throws ParseError if the code is unreadable
+    // A plain barcode or a bare link carries no batch; the person may have typed the one printed on the pack.
+    if (code.batch === null && printed_batch) code = { ...code, batch: printed_batch.toUpperCase() };
     const hash = serialHash(code, salt); // null when the code has no serial
     const scannedAt = now();
 
@@ -31,13 +35,14 @@ export function createVerifier({ db, narrator, salt, now = () => new Date() }) {
       throw new VerificationUnavailable('the registry could not be read', { cause: err });
     }
 
-    // 2. Run the three checks at the same time. The anomaly check also needs
+    // 2. Run the four checks at the same time. The anomaly check also needs
     //    this scan itself: where and when it happened, and on which phone.
     const thisScan = { at: scannedAt.getTime(), lat: location?.lat ?? null, lon: location?.lon ?? null, phone: device_id };
     const results = await Promise.all([
       runCheck('ledger', () => ledgerCheck(code, record, isoDay(scannedAt))),
       runCheck('recall', () => recallCheck(db, code, record)),
-      runCheck('anomaly', () => anomalyCheck(db, code, record, thisScan)),
+      runCheck('anomaly', () => anomalyCheck(db, code, record, thisScan, hash)),
+      runCheck('web', () => webCheck(db, code, record, { ...web, phone: device_id })),
     ]);
     if (results[0].verdict === 'ERROR') throw new VerificationUnavailable('the registry check failed');
 
